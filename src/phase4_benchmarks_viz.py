@@ -623,7 +623,38 @@ def generate_interactive_resilience_map(
     origin_lat, origin_lon = 7.915, 80.280
     scale = 0.009  # ~1 km per 0.009 deg
     
-    m = folium.Map(location=[origin_lat + 10.0 * scale, origin_lon + 12.0 * scale], zoom_start=12, tiles="OpenStreetMap")
+    # Initialize map without default OSM tiles to prevent HTTP 403 Forbidden on local file://
+    m = folium.Map(
+        location=[origin_lat + 10.0 * scale, origin_lon + 12.0 * scale],
+        zoom_start=12,
+        tiles=None
+    )
+    
+    # 1. Primary Base Layer: Esri World Street Map (highly reliable, never 403s on local file://)
+    folium.TileLayer(
+        tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+        attr="Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), TomTom",
+        name="Esri World Street Map (Default)",
+        control=True
+    ).add_to(m)
+    
+    # 2. Secondary Base Layer: CartoDB Positron (clean light basemap)
+    folium.TileLayer(
+        tiles="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        attr="&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions'>CARTO</a>",
+        name="CartoDB Positron (Clean Light)",
+        control=True,
+        subdomains="abcd",
+        max_zoom=20
+    ).add_to(m)
+
+    # 3. Tertiary Base Layer: Esri World Topo Map (topographic elevation relief)
+    folium.TileLayer(
+        tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+        attr="Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey",
+        name="Esri Topographic Terrain",
+        control=True
+    ).add_to(m)
     
     # 1. Plot Roads
     for u, v, d in G.edges(data=True):
@@ -697,6 +728,28 @@ def generate_interactive_resilience_map(
             tooltip=v_row["name"]
         ).add_to(m)
         
+    # 4. Add Layer Control & Legend
+    folium.LayerControl(position="topright").add_to(m)
+    
+    legend_html = '''
+    <div style="position: fixed; 
+                bottom: 30px; left: 30px; width: 230px; height: auto; 
+                background-color: white; z-index:9999; font-size:12px;
+                border:2px solid #cbd5e1; border-radius:8px; padding: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        <b style="font-size:13px; color:#1e293b;">EvoRoute Resilience Map</b><br>
+        <hr style="margin: 6px 0;">
+        <i style="background:#10b981; width:16px; height:4px; display:inline-block; vertical-align:middle;"></i>&nbsp;<b>GA-Fortified Corridor</b><br>
+        <i style="border-top: 3px dashed #ef4444; width:16px; height:0px; display:inline-block; vertical-align:middle;"></i>&nbsp;Flooded / Closed Road<br>
+        <i style="background:#9ca3af; width:16px; height:2px; display:inline-block; vertical-align:middle;"></i>&nbsp;Intact Road Link<br>
+        <hr style="margin: 6px 0;">
+        <span style="color:#dc2626; font-size:14px;">&#10010;</span> Hospital / Clinic<br>
+        <span style="color:#2563eb; font-size:14px;">&#127891;</span> School Center<br>
+        <span style="color:#ea580c; font-size:14px;">&#128722;</span> Market Hub<br>
+        <span style="color:#3b82f6; font-size:14px;">&#9679;</span> Village Settlement
+    </div>
+    '''
+    m.get_root().html.add_child(folium.Element(legend_html))
+    
     map_out = MAPS_DIR / "flood_resilience_map.html"
     m.save(str(map_out))
     print(f"-> Saved Interactive Resilience Map to {map_out}")
