@@ -51,11 +51,11 @@ Every equation, parameter, and experimental design choice in this plan is ground
 
 | Reference Source | Core Methodological Contribution | Exact Implementation in This System |
 | :--- | :--- | :--- |
-| **Mitropoulos et al. (2025)** | Empirical floodwater depth vs. vehicle speed degradation curve; $200\text{ mm}$ road closure threshold; Hansen Facility Accessibility Index ($FAI$) and Overall Accessibility Index ($OAI$). | Phase 1 uses $v(w) = 0.0009w^2 - 0.5529w + 86.9448$ and closes roads at $w \ge 200\text{ mm}$. Phase 2 computes $FAI_i$ and $OAI$ across baseline and 3 flood severities. |
-| **Moratuwa TRF Pipeline Paper** | OpenStreetMap (OSM) rural road graph extraction, snapping villages (origins) and essential facilities (destinations) to graph nodes, and travel-time impedance routing. | Phase 1 extracts OSM networks, snaps amenities and villages to nearest nodes, and assigns class-based free-flow speeds ($30\text{ km/h}$ to $60\text{ km/h}$). |
-| **Kulathunga & Pasindu** | Genetic Algorithm (GA) with binary chromosome encoding for road network maintenance/upgrading under budget constraints; synthetic network validation. | Phase 3 uses binary encoding $\mathbf{x} \in \{0,1\}^N$, tournament selection, elitism, and a budget repair operator. Phase 1 includes a synthetic grid fallback. |
-| **Budget Resilience Scenarios (arXiv:2302.07983)** | Evaluating post-disaster infrastructure fortification across graduated budget availability tiers. | Phase 3 and Phase 4 optimize road portfolios at exactly $5\%$, $10\%$, $15\%$, and $20\%$ of the total flooded corridor rehabilitation cost. |
-| **AHP-TOPSIS Road Prioritization Literature** | Analytic Hierarchy Process (Saaty pairwise matrices) for criteria weighting and TOPSIS distance-to-ideal ranking. | Phase 2 uses AHP for facility weights ($W_{\text{hosp}}, W_{\text{school}}, W_{\text{market}}$). Phase 4 uses crisp AHP-TOPSIS as the primary MCDM baseline. |
+| **Mitropoulos et al. (2025) / Pregnolato et al. (2017)** | Empirical floodwater depth vs. vehicle speed degradation curve; $200\text{ mm}$ road impassability threshold; Hansen Facility Accessibility Index ($FAI$) and Overall Accessibility Index ($OAI$). | Phase 1 implements $v(w) = 0.0009w^2 - 0.5529w + 86.9448$ and closes roads at $w \ge 200\text{ mm}$. Phase 2 computes Hansen $FAI_i$ and $OAI$ across baseline and 3 flood severities. |
+| **Sangeeta et al. (EGU 2025)** | Resilience framework evaluating healthcare/emergency facility accessibility loss across 3 progressive climate flood scenarios (Present, Mid-Range, High-End); Betweenness Centrality for road network criticality; Social Vulnerability Index (SVI). | Phase 1 adopts 3 progressive flood severity scenarios ($H_1, H_2, H_3$) and edge betweenness pruning. Phase 1 & 2 weight populations by Social Vulnerability ($P_i^{\text{eff}} = P_i \times \text{SVI}_i$) prioritizing high-risk demographic clusters. |
+| **Akhlaghi, Campbell & Demir (arXiv:2302.07983)** | Mathematical formulation of the Road Network Flood Mitigation Problem (RNFMP); network design under graduated budget tiers; healthcare facility access under extreme flood events; network reduction bounds. | Phase 3 and Phase 4 optimize road portfolios under graduated budget tiers ($5\%, 10\%, 15\%, 20\%$ of total mitigation cost) and origin-to-facility shortest path objectives. Facility capacity bounds ($H_j$) are retained for diagnostic load tracking. |
+| **Rathnayaka, Pasindu & Kulathunga (2025)** | Multi-criteria risk assessment framework (Exposure, Likelihood, Severity) for prioritizing road infrastructure mitigation and completion under severe fiscal constraints in developing road networks. | Phase 2 and Phase 3 translate the multi-criteria risk philosophy into the 3-input Mamdani FIS (Exposure, Accessibility Benefit, Isolation & Criticality) to rank interventions under strict resource constraints. |
+| **AHP-TOPSIS & Soft Computing Literature** | Analytic Hierarchy Process (Saaty pairwise matrices) for criteria weighting; Mamdani Fuzzy Inference for approximate reasoning; Binary Genetic Algorithms (GA) for combinatorial knapsack network synergy; TOPSIS distance-to-ideal ranking. | Phase 2 uses AHP for facility weights ($W_{\text{hosp}}, W_{\text{school}}, W_{\text{market}}$). Phase 3 uses Mamdani FIS for heuristic expert guidance and a binary GA for global combinatorial portfolio optimization. Phase 4 benchmarks against crisp AHP-TOPSIS. |
 
 ---
 
@@ -89,7 +89,7 @@ To prevent runtime crashes, infinite loops, or methodological critiques during e
 **Files:** `src/config.py`, `src/phase1_network_flood.py`
 
 #### Step 1.1: Graph Extraction or Synthetic Fallback
-1. Attempt OSM extraction for a compact flood-prone study area (or use the deterministic Synthetic Flood-Prone Rural Network generator built into `phase1_network_flood.py` if offline or if OSM amenity tags are sparse, following Kulathunga & Pasindu).
+1. Attempt OSM extraction for a compact flood-prone study area (or use the deterministic Synthetic Flood-Prone Rural Network generator built into `phase1_network_flood.py` if offline or if OSM amenity tags are sparse, following established network benchmark protocols).
 2. Convert the raw network to a connected undirected graph $G = (V, E)$:
    * Retain only the largest connected component.
    * Assign free-flow speed limits $v_{\text{limit}}(e)$ by highway class:
@@ -100,17 +100,19 @@ To prevent runtime crashes, infinite loops, or methodological critiques during e
    * Compute baseline travel time in minutes:
      $$t_{\text{base}}(e) = \frac{\text{length}_{\text{km}}(e)}{v_{\text{limit}}(e)} \times 60$$
 
-#### Step 1.2: Origin-Destination Snapping & Elevation Sampling
-1. **Villages ($V_{\text{vill}}$):** Snap $15\text{--}40$ village centroids to nearest graph nodes $u \in V$. Attach population $P_i$ (from census/WorldPop or uniform $P_i = 1000$ documented in `ASSUMPTIONS.md`).
+#### Step 1.2: Origin-Destination Snapping, Vulnerability & Elevation Sampling
+1. **Villages ($V_{\text{vill}}$) & Social Vulnerability:** Snap $15\text{--}40$ village centroids to nearest graph nodes $u \in V$. Attach base population $P_i$ and a **Social Vulnerability Index** ($\text{SVI}_i \in [0.8, 1.4]$, following Sangeeta et al. 2025) reflecting vulnerable demographics (elderly, children, low-income, healthcare-dependent). Compute effective vulnerable population:
+   $$P_i^{\text{eff}} = P_i \times \text{SVI}_i$$
+   (with uniform baseline $\text{SVI}_i = 1.0$ and $P_i = 1000$ documented in `ASSUMPTIONS.md`).
 2. **Facilities ($F_k$):** Snap Hospital/Clinic ($k=1$), School ($k=2$), and Market ($k=3$) locations to nearest graph nodes.
 3. **HAND Elevation Proxy:** For each edge midpoint, sample elevation $z(e)$ and nearest river channel elevation $z_{\text{river}}(e)$. Compute relative elevation:
    $$h_{\text{rel}}(e) = \max\left(0.0, z(e) - z_{\text{river}}(e)\right)$$
 
 #### Step 1.3: Flood Scenarios & Mitropoulos (2025) Speed-Closure Model
-Evaluate three synthetic water rise scenarios $s \in \{1, 2, 3\}$ corresponding to $H_1 = 1.0\text{ m}$ (Moderate), $H_2 = 2.0\text{ m}$ (Severe), and $H_3 = 3.0\text{ m}$ (Extreme):
+Evaluate three synthetic water-stage rise scenarios $s \in \{1, 2, 3\}$ representing progressive failure states (Moderate, Severe, Extreme, analogous to Sangeeta et al.'s climate progression): $H_1 = 1.0\text{ m}$, $H_2 = 2.0\text{ m}$, and $H_3 = 3.0\text{ m}$:
 1. Flood depth in millimeters on edge $e$ in scenario $s$:
    $$w_{e,s} = 1000 \times \max\left(0.0, H_s - h_{\text{rel}}(e)\right)$$
-2. Mitropoulos (2025) speed-depth equation (for $0 < w_{e,s} < 200\text{ mm}$):
+2. Mitropoulos (2025) / Pregnolato et al. (2017) speed-depth equation (for $0 < w_{e,s} < 200\text{ mm}$):
    $$v(w_{e,s}) = 0.0009 w_{e,s}^2 - 0.5529 w_{e,s} + 86.9448$$
 3. Effective edge speed $v_{e,s}$ and closure rule:
    $$v_{e,s} = \begin{cases} 0 \text{ (Closed)}, & \text{if } w_{e,s} \ge 200\text{ mm} \\ \min\left(v(w_{e,s}), 0.85 \cdot v_{\text{limit}}(e)\right), & \text{if } 0 < w_{e,s} < 200\text{ mm} \\ v_{\text{limit}}(e), & \text{if } w_{e,s} = 0\text{ mm} \end{cases}$$
@@ -139,20 +141,22 @@ For any graph state (baseline, flooded scenario $s$, or GA-restored state):
 1. For each facility category $k \in \{\text{hosp}, \text{school}, \text{market}\}$ and each facility $r \in F_k$, compute shortest travel time $c_{ir}$ (in minutes) to every village $i \in V_{\text{vill}}$ using multi-source/single-source Dijkstra from facility nodes $r$.
 2. **Facility Accessibility Index ($FAI_i$, Hansen $\beta = 1$):**
    $$\text{FAI}_i = \sum_{k} W_k \sum_{r \in F_k \text{ s.t. } c_{ir} < \infty} \frac{1}{\max\left(1.0, c_{ir}\right)}$$
-3. **Population-Weighted Network FAI:**
-   $$\text{FAI}_{\text{net}} = \frac{\sum_{i \in V_{\text{vill}}} P_i \cdot \text{FAI}_i}{\sum_{i \in V_{\text{vill}}} P_i}$$
+3. **Vulnerability-Weighted Network FAI (integrating SVI from Sangeeta et al. 2025):**
+   $$\text{FAI}_{\text{net}} = \frac{\sum_{i \in V_{\text{vill}}} P_i^{\text{eff}} \cdot \text{FAI}_i}{\sum_{i \in V_{\text{vill}}} P_i^{\text{eff}}}$$
 4. **Village Isolation Indicator ($I_{i,k}$ and Hospital Isolation $I_i^{\text{hosp}}$):**
    * A village $i$ is isolated from category $k$ ($I_{i,k} = 1$) if $\min_{r \in F_k} c_{ir} = \infty$.
-   * **Overall Isolation Share ($S_{\text{iso}}$):** Fraction of total population isolated from *at least one* facility category (with primary tracking on hospital isolation).
+   * **Overall Vulnerable Isolation Share ($S_{\text{iso}}$):** Fraction of total effective vulnerable population isolated from healthcare facilities:
+     $$S_{\text{iso}} = \frac{\sum_{i \in V_{\text{vill}}} P_i^{\text{eff}} \cdot I_i^{\text{hosp}}}{\sum_{i \in V_{\text{vill}}} P_i^{\text{eff}}}$$
 5. **Overall Accessibility Index ($OAI$):** Share of total population reaching at least one hospital within $30\text{ min}$, school within $20\text{ min}$, and market within $20\text{ min}$.
+6. **Facility Capacity Diagnostic (following Akhlaghi et al. 2023):** While unconstrained gravity decay models continuous potential accessibility, track destination loads $\sum_{i \to r} P_i$ against nominal capacities $H_j$ in post-run diagnostic reporting to identify potential healthcare facility bottlenecks.
 
 #### Step 2.3: Candidate Corridor Criteria Table Extraction
 For each candidate corridor $j \in \{1, \dots, N\}$ in $E_{\text{cand}}$, compute its marginal protection value by temporarily keeping corridor $j$ open ($w_{j,s} = 0$) while all other flooded edges remain degraded/closed:
 1. **Criterion 1 — Flood Exposure ($C_{\text{exp}, j}$):** Mean flood depth across the 3 scenarios:
    $$C_{\text{exp}, j} = \frac{1}{3} \sum_{s=1}^3 w_{j,s}$$
-2. **Criterion 2 — Marginal Accessibility Benefit ($C_{\text{acc}, j}$):** Mean population-weighted $\text{FAI}_{\text{net}}$ gained across scenarios when corridor $j$ alone is protected:
+2. **Criterion 2 — Marginal Accessibility Benefit ($C_{\text{acc}, j}$):** Mean vulnerability-weighted $\text{FAI}_{\text{net}}$ gained across scenarios when corridor $j$ alone is protected:
    $$C_{\text{acc}, j} = \frac{1}{3} \sum_{s=1}^3 \left( \text{FAI}_{\text{net}, s}(\text{protect } j) - \text{FAI}_{\text{net}, s}(\text{unprotected}) \right)$$
-3. **Criterion 3 — Isolation & Criticality Index ($C_{\text{iso}, j}$):** Composite of population reconnected from isolation ($\Delta P_{\text{iso}, j}$) and topological/hierarchy criticality ($0.7 \cdot \widehat{\Delta P}_{\text{iso}, j} + 0.3 \cdot \widehat{\text{Betweenness}}_j \cdot h_{c,j}$), ensuring that even in networks where multiple bridge failures require pairs of roads to reconnect a village, critical lifeline corridors still receive non-zero isolation criticality signal.
+3. **Criterion 3 — Isolation & Criticality Index ($C_{\text{iso}, j}$):** Composite of effective vulnerable population reconnected from isolation ($\Delta P_{\text{iso}, j}^{\text{eff}}$) and topological/hierarchy criticality ($0.7 \cdot \widehat{\Delta P}_{\text{iso}, j}^{\text{eff}} + 0.3 \cdot \widehat{\text{Betweenness}}_j \cdot h_{c,j}$), ensuring that even in networks where multiple bridge failures require pairs of roads to reconnect a village, critical lifeline corridors still receive non-zero isolation criticality signal.
 4. **Min-Max Normalization to $[0, 1]$ with Safe Zero-Guard:**
    $$\hat{C}_{m, j} = \text{clip}\left( \frac{C_{m, j} - \min_j(C_m)}{\max\left(10^{-9}, \max_j(C_m) - \min_j(C_m)\right)}, \, 0.0, \, 1.0 \right)$$
 
@@ -250,7 +254,7 @@ To guarantee that no phase ever crashes due to missing columns or mismatched typ
 | Interface Object | Produced By | Consumed By | Required Keys / Columns & Types |
 | :--- | :--- | :--- | :--- |
 | `G` (`nx.Graph`) | Phase 1 | Phases 2, 3, 4 | Node attrs: `x` (`float`), `y` (`float`), `elevation` (`float`). Edge attrs: `corridor_id` (`int`), `length_km` (`float`), `v_limit` (`float`), `t_base` (`float`), `h_rel` (`float`), `cost_usd` (`float`), `h_class_weight` (`float`), `w_s1, w_s2, w_s3` (`float`), `t_s1, t_s2, t_s3` (`float`). |
-| `villages_df` (`DataFrame`) | Phase 1 | Phases 2, 3, 4 | `village_id` (`int`), `name` (`str`), `node_id` (`int`), `population` (`int`), `x` (`float`), `y` (`float`). |
+| `villages_df` (`DataFrame`) | Phase 1 | Phases 2, 3, 4 | `village_id` (`int`), `name` (`str`), `node_id` (`int`), `population` (`int`), `svi` (`float`), `effective_pop` (`float`), `x` (`float`), `y` (`float`). |
 | `facilities_dict` (`dict`) | Phase 1 | Phases 2, 3, 4 | Keys: `'hospital'`, `'school'`, `'market'`. Values: `list[int]` of snapped graph `node_id`s. |
 | `candidates_df` (`DataFrame`) | Phase 2 | Phases 3, 4 | `gene_idx` (`0..N-1`), `corridor_id` (`int`), `u` (`int`), `v` (`int`), `length_km` (`float`), `cost_usd` (`float`), `exp_raw` (`float`), `acc_raw` (`float`), `iso_raw` (`float`), `exp_norm` (`float`), `acc_norm` (`float`), `iso_norm` (`float`), `betweenness` (`float`). |
 | `fuzzy_scores` (`np.ndarray`) | Phase 3.1 | Phase 3.2, 4 | `shape=(N,)`, `dtype=float64`, strictly bounded in $[0.0, 100.0]$. Added as column `fuzzy_priority` to `candidates_df`. |
