@@ -39,13 +39,29 @@ This repository contains the project under development. Data sources, supported 
 Document the source, date, geographic coverage, resolution, license, and limitations of each dataset used. Avoid committing sensitive personal or household-level information. Follow applicable data licenses and local privacy requirements.
 
 ## Getting Started
-STEPS TO RUN:
 
-1)Clone the project 
-2)Go to the project folder(Open it in any editor like vs code)
-3)Open a new terminal
-4)Run the run_evoroute.bat file using:
-      ./run_evoroute.bat
+## Steps to Run
+
+1. **Clone the project**
+   ```bash
+   git clone <your-repository-url>
+   ```
+
+2. **Open the project folder**
+   
+   Navigate to the project folder and open it in an editor such as VS Code.
+
+3. **Open a new terminal**
+   
+   In VS Code, go to **Terminal → New Terminal**.
+
+4. **Run the application**
+   
+   Execute the following command in the terminal:
+
+   ```bash
+   ./run_evoroute.bat
+   ```
 
 ## Expected Outputs
 
