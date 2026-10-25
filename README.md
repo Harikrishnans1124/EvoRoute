@@ -39,8 +39,13 @@ This repository contains the project under development. Data sources, supported 
 Document the source, date, geographic coverage, resolution, license, and limitations of each dataset used. Avoid committing sensitive personal or household-level information. Follow applicable data licenses and local privacy requirements.
 
 ## Getting Started
+STEPS TO RUN:
 
-Setup and usage instructions will be added once the project’s implementation and data requirements are defined.
+1)Clone the project 
+2)Go to the project folder(Open it in any editor like vs code)
+3)Open a new terminal
+4)Run the run_evoroute.bat file using:
+      ./run_evoroute.bat
 
 ## Expected Outputs
 
